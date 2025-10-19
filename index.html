@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading History</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        @media (min-width: 768px) {
+            .card-shadow {
+                box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+            }
+
+            .card-shadow-lg {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+            }
+        }
+
+        * {
+            transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 150ms;
+        }
+
+        /* Ensure full viewport height without scrolling */
+        body {
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #app {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100">
+    <div id="app" class="w-full max-w-sm md:max-w-2xl lg:max-w-4xl xl:max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3 md:py-4">
+        <div class="h-full flex flex-col">
+            <!-- Title -->
+            <h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 text-center my-2 sm:my-3 md:my-4 lg:my-5 tracking-tight">
+                Trading History
+            </h1>
+
+            <!-- Controls Bar -->
+            <div class="flex items-center justify-center gap-1.5 sm:gap-2 md:gap-3 mb-2 sm:mb-3 md:mb-4 flex-wrap md:flex-nowrap">
+                <label class="cursor-pointer p-2 sm:p-2.5 md:p-3 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 rounded-lg sm:rounded-xl transition-all flex-shrink-0 card-shadow hover:shadow-lg transform hover:scale-105 active:scale-95">
+                    <svg class="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <input type="file" id="csvFile" accept=".csv" class="hidden">
+                </label>
+
+                <div class="relative flex-shrink-0 w-28 sm:w-32 md:w-40">
+                    <select id="marketFilter" class="w-full px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 bg-white border-2 border-gray-200 hover:border-gray-300 focus:border-blue-400 rounded-lg sm:rounded-xl text-xs sm:text-sm md:text-base font-medium text-gray-900 appearance-none cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-200 card-shadow">
+                        <option>All Markets</option>
+                    </select>
+                    <svg class="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-gray-400 rotate-90 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+
+                <div class="relative flex-shrink-0">
+                    <select id="yearFilter" class="pl-3 sm:pl-4 md:pl-5 pr-6 sm:pr-8 md:pr-10 py-2 sm:py-2.5 md:py-3 bg-white border-2 border-gray-200 hover:border-gray-300 focus:border-blue-400 rounded-lg sm:rounded-xl text-xs sm:text-sm md:text-base font-medium text-gray-900 appearance-none cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-200 card-shadow">
+                        <option>2025</option>
+                    </select>
+                    <svg class="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-gray-400 rotate-90 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+
+            </div>
+
+            <!-- View Toggle Buttons -->
+            <div class="flex gap-1 sm:gap-1.5 md:gap-2 mb-2 sm:mb-3 md:mb-4 bg-gray-200 p-1 sm:p-1.5 rounded-lg sm:rounded-xl card-shadow">
+                <button data-view="Daily" class="view-btn flex-1 py-1.5 sm:py-2 md:py-2.5 px-2 sm:px-3 md:px-4 rounded-md sm:rounded-lg font-semibold text-xs sm:text-sm md:text-base transition-all bg-white text-gray-900 shadow-md">
+                    Daily
+                </button>
+                <button data-view="Week" class="view-btn flex-1 py-1.5 sm:py-2 md:py-2.5 px-2 sm:px-3 md:px-4 rounded-md sm:rounded-lg font-semibold text-xs sm:text-sm md:text-base transition-all text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                    Week
+                </button>
+                <button data-view="Month" class="view-btn flex-1 py-1.5 sm:py-2 md:py-2.5 px-2 sm:px-3 md:px-4 rounded-md sm:rounded-lg font-semibold text-xs sm:text-sm md:text-base transition-all text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                    Month
+                </button>
+                <button data-view="Year" class="view-btn flex-1 py-1.5 sm:py-2 md:py-2.5 px-2 sm:px-3 md:px-4 rounded-md sm:rounded-lg font-semibold text-xs sm:text-sm md:text-base transition-all text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                    Year
+                </button>
+            </div>
+
+            <!-- Calendar Container -->
+            <div id="calendarContainer" class="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl p-2 sm:p-3 md:p-4 lg:p-5 card-shadow-lg flex-1 overflow-hidden">
+                <!-- No Data Message -->
+                <div id="noDataMessage" class="h-full flex flex-col items-center justify-center">
+                    <div class="mb-3">
+                        <svg class="mx-auto h-12 w-12 sm:h-16 sm:w-16 md:h-20 md:w-20 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-gray-400 text-base sm:text-lg md:text-xl font-semibold mb-1 sm:mb-2">No data available</div>
+                    <div class="text-gray-500 text-xs sm:text-sm md:text-base">Please upload a CSV file to view your trading history</div>
+                </div>
+
+                <!-- Calendar Content -->
+                <div id="calendarContent" class="hidden h-full flex flex-col"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="app.js"></script>
+</body>
+</html>
