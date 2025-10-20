@@ -213,7 +213,7 @@ function renderDailyView() {
             ${daysOfWeek.map(day => `<div class="text-[9px] sm:text-[10px] md:text-xs lg:text-sm text-center font-semibold text-gray-500 py-0.5">${day}</div>`).join('')}
         </div>
 
-        <div class="grid grid-cols-7 gap-0.5 sm:gap-1 md:gap-1.5 overflow-auto">
+        <div class="grid grid-cols-7 gap-1 sm:gap-1.5 md:gap-2 overflow-auto">
     `;
 
     // Empty cells before month starts
@@ -234,21 +234,21 @@ function renderDailyView() {
             bgClass = dayData.total >= 0 ? 'bg-green-100 hover:bg-green-200' : 'bg-red-100 hover:bg-red-200';
             textColorClass = dayData.total >= 0 ? 'text-green-700' : 'text-red-700';
             content = `
-                <div class="text-[10px] sm:text-xs md:text-sm lg:text-base font-bold ${textColorClass} leading-tight">
+                <div class="text-xs sm:text-xs md:text-sm lg:text-base font-bold ${textColorClass} leading-tight">
                     ${dayData.total >= 0 ? '' : '-'}${Math.abs(dayData.total).toFixed(0)}
                 </div>
-                <div class="text-[6px] sm:text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 mt-0.5">T:${dayData.trades}</div>
+                <div class="text-[8px] sm:text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 mt-0.5">T:${dayData.trades}</div>
             `;
         } else {
             content = `
-                <div class="text-[10px] sm:text-xs md:text-sm lg:text-base font-bold invisible">$0</div>
-                <div class="text-[6px] sm:text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 mt-0.5 invisible">T:0</div>
+                <div class="text-xs sm:text-xs md:text-sm lg:text-base font-bold invisible">$0</div>
+                <div class="text-[8px] sm:text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 mt-0.5 invisible">T:0</div>
             `;
         }
 
         html += `
-            <div class="${bgClass} rounded-md sm:rounded-lg md:rounded-xl p-1 sm:p-2 md:p-3 lg:p-4 flex flex-col items-center justify-center aspect-square transition-all cursor-pointer shadow-sm">
-                <div class="text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold mb-0.5 text-gray-700">${day}</div>
+            <div class="${bgClass} rounded-md sm:rounded-lg md:rounded-xl p-1.5 sm:p-2 md:p-3 lg:p-4 flex flex-col items-center justify-center min-h-[60px] sm:aspect-square transition-all cursor-pointer shadow-sm">
+                <div class="text-xs sm:text-xs md:text-sm lg:text-base font-semibold mb-0.5 text-gray-700">${day}</div>
                 ${content}
             </div>
         `;
@@ -290,18 +290,18 @@ function renderWeekView() {
             bgClass = weekData.total >= 0 ? 'bg-green-100 hover:bg-green-200' : 'bg-red-100 hover:bg-red-200';
             const textColor = weekData.total >= 0 ? 'text-green-700' : 'text-red-700';
             content = `
-                <div class="text-[10px] sm:text-xs md:text-sm font-bold ${textColor} leading-tight">
+                <div class="text-xs sm:text-xs md:text-sm font-bold ${textColor} leading-tight">
                     ${weekData.total >= 0 ? '' : '-'}${Math.abs(weekData.total).toFixed(0)}
                 </div>
-                <div class="text-[6px] sm:text-[7px] md:text-[8px] text-gray-500 mt-0.5">T:${weekData.trades}</div>
+                <div class="text-[8px] sm:text-[7px] md:text-[8px] text-gray-500 mt-0.5">T:${weekData.trades}</div>
             `;
         } else {
-            content = '<div class="text-[8px] text-gray-300">-</div>';
+            content = '<div class="text-[10px] text-gray-300">-</div>';
         }
 
         html += `
-            <div onclick="handleWeekClick(${i})" class="${bgClass} rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 flex flex-col items-center justify-center min-h-[80px] sm:min-h-[90px] md:min-h-[100px] transition-all cursor-pointer shadow-sm hover:shadow-md">
-                <div class="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 mb-0.5">${i}</div>
+            <div onclick="handleWeekClick(${i})" class="${bgClass} rounded-lg sm:rounded-xl p-1.5 sm:p-3 md:p-4 flex flex-col items-center justify-center min-h-[60px] sm:min-h-[90px] md:min-h-[100px] transition-all cursor-pointer shadow-sm hover:shadow-md">
+                <div class="text-xs sm:text-xs md:text-sm font-semibold text-gray-700 mb-0.5">${i}</div>
                 ${content}
             </div>
         `;
@@ -345,16 +345,16 @@ function renderMonthView() {
             bgClass = monthData.total >= 0 ? 'bg-green-100 hover:bg-green-200' : 'bg-red-100 hover:bg-red-200';
             const textColor = monthData.total >= 0 ? 'text-green-700' : 'text-red-700';
             content = `
-                <div class="text-[10px] sm:text-xs md:text-sm lg:text-base font-bold ${textColor}">
+                <div class="text-xs sm:text-xs md:text-sm lg:text-base font-bold ${textColor}">
                     ${monthData.total >= 0 ? '' : '-'}${Math.abs(monthData.total).toFixed(0)}
                 </div>
-                <div class="text-[6px] sm:text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 mt-1">T:${monthData.trades}</div>
+                <div class="text-[8px] sm:text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 mt-1">T:${monthData.trades}</div>
             `;
         }
 
         html += `
             <div onclick="handleMonthClick(${index})" class="${bgClass} rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 flex flex-col items-center justify-center min-h-[60px] sm:min-h-[70px] md:min-h-[80px] transition-all cursor-pointer transform hover:scale-105 shadow-sm hover:shadow-md">
-                <div class="text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold text-gray-700 mb-1">${month}</div>
+                <div class="text-xs sm:text-xs md:text-sm lg:text-base font-semibold text-gray-700 mb-1">${month}</div>
                 ${content}
             </div>
         `;
@@ -399,16 +399,16 @@ function renderYearView() {
             bgClass = yearData.total >= 0 ? 'bg-green-100 hover:bg-green-200' : 'bg-red-100 hover:bg-red-200';
             const textColor = yearData.total >= 0 ? 'text-green-700' : 'text-red-700';
             content = `
-                <div class="text-[10px] sm:text-xs md:text-sm lg:text-base font-bold ${textColor}">
+                <div class="text-xs sm:text-xs md:text-sm lg:text-base font-bold ${textColor}">
                     ${yearData.total >= 0 ? '' : '-'}${Math.abs(yearData.total).toFixed(0)}
                 </div>
-                <div class="text-[6px] sm:text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 mt-1">T:${yearData.trades}</div>
+                <div class="text-[8px] sm:text-[7px] md:text-[8px] lg:text-[9px] text-gray-500 mt-1">T:${yearData.trades}</div>
             `;
         }
 
         html += `
             <div onclick="handleYearClick(${year})" class="${bgClass} rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 flex flex-col items-center justify-center min-h-[80px] sm:min-h-[90px] md:min-h-[100px] transition-all cursor-pointer transform hover:scale-105 shadow-sm hover:shadow-md">
-                <div class="text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold text-gray-700 mb-1.5">${year}</div>
+                <div class="text-xs sm:text-xs md:text-sm lg:text-base font-semibold text-gray-700 mb-1.5">${year}</div>
                 ${content}
             </div>
         `;
