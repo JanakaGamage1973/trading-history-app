@@ -247,8 +247,8 @@ function renderDailyView() {
         }
 
         html += `
-            <div class="${bgClass} rounded-md sm:rounded-lg md:rounded-xl p-1.5 sm:p-2 md:p-3 lg:p-4 flex flex-col items-center justify-center min-h-[60px] sm:aspect-square transition-all cursor-pointer shadow-sm">
-                <div class="text-xs sm:text-xs md:text-sm lg:text-base font-semibold mb-0.5 text-gray-700">${day}</div>
+            <div class="${bgClass} rounded-lg sm:rounded-xl p-1.5 sm:p-3 md:p-4 flex flex-col items-center justify-center min-h-[60px] sm:min-h-[90px] md:min-h-[100px] transition-all cursor-pointer shadow-sm hover:shadow-md">
+                <div class="text-xs sm:text-xs md:text-sm font-semibold mb-0.5 text-gray-700">${day}</div>
                 ${content}
             </div>
         `;
