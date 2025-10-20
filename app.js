@@ -20,6 +20,23 @@ function getWeekNumber(date) {
 }
 
 function processData(rawData) {
+    // Debug: Log first row to see available fields
+    if (rawData.length > 0) {
+        console.log('=== CSV DEBUG INFO ===');
+        console.log('CSV Columns:', Object.keys(rawData[0]));
+        console.log('First row sample:', rawData[0]);
+
+        // Show time-related fields
+        const timeFields = Object.keys(rawData[0]).filter(key =>
+            key.toLowerCase().includes('time') ||
+            key.toLowerCase().includes('date') ||
+            key.toLowerCase().includes('open') ||
+            key.toLowerCase().includes('close')
+        );
+        console.log('Time/Date related fields:', timeFields);
+        console.log('====================');
+    }
+
     const cleanData = rawData.map(row => {
         let plAmount = 0;
         if (row['PL Amount']) {
@@ -27,11 +44,112 @@ function processData(rawData) {
             plAmount = parseFloat(plStr) || 0;
         }
 
+        // Calculate points (price difference between close and open)
+        let plPoints = 0;
+        let openPrice = 0;
+        let closePrice = 0;
+
+        // Search through all keys to find open/close prices (case-insensitive)
+        const keys = Object.keys(row);
+
+        for (let key of keys) {
+            const lowerKey = key.toLowerCase();
+
+            // Find open price
+            if ((lowerKey.includes('open') && lowerKey.includes('level')) ||
+                (lowerKey.includes('open') && lowerKey.includes('price')) ||
+                lowerKey === 'open' ||
+                lowerKey === 'openlevel') {
+                const val = parseFloat(row[key]);
+                if (!isNaN(val) && val !== 0) {
+                    openPrice = val;
+                }
+            }
+
+            // Find close price
+            if ((lowerKey.includes('close') && lowerKey.includes('level')) ||
+                (lowerKey.includes('close') && lowerKey.includes('price')) ||
+                lowerKey === 'close' ||
+                lowerKey === 'closelevel') {
+                const val = parseFloat(row[key]);
+                if (!isNaN(val) && val !== 0) {
+                    closePrice = val;
+                }
+            }
+        }
+
+        // Calculate points as the absolute difference
+        if (openPrice !== 0 && closePrice !== 0) {
+            plPoints = Math.abs(closePrice - openPrice);
+            // If it's a loss, make points negative
+            if (plAmount < 0) {
+                plPoints = -plPoints;
+            }
+        }
+
         let date = null;
         if (row.DateUtc) {
             date = new Date(row.DateUtc);
         } else if (row.TextDate) {
             date = new Date(row.TextDate);
+        }
+
+        // Extract open and close times for duration calculation
+        let openTime = null;
+        let closeTime = null;
+
+        // Try specific field names first
+        if (row['OpenDateUtc']) {
+            openTime = new Date(row['OpenDateUtc']);
+        } else if (row['OpenTimeUtc']) {
+            openTime = new Date(row['OpenTimeUtc']);
+        }
+
+        if (row['DateUtc']) {
+            closeTime = new Date(row['DateUtc']);
+        } else if (row['CloseDateUtc']) {
+            closeTime = new Date(row['CloseDateUtc']);
+        } else if (row['CloseTimeUtc']) {
+            closeTime = new Date(row['CloseTimeUtc']);
+        }
+
+        // If not found, search through all keys
+        if (!openTime || !closeTime) {
+            for (let key of keys) {
+                const lowerKey = key.toLowerCase();
+
+                // Find open time/date
+                if (!openTime && lowerKey.includes('open')) {
+                    if (lowerKey.includes('time') || lowerKey.includes('date') || lowerKey.includes('utc')) {
+                        const val = row[key];
+                        if (val) {
+                            const parsedDate = new Date(val);
+                            if (!isNaN(parsedDate.getTime())) {
+                                openTime = parsedDate;
+                            }
+                        }
+                    }
+                }
+
+                // Find close time/date
+                if (!closeTime && lowerKey.includes('close')) {
+                    if (lowerKey.includes('time') || lowerKey.includes('date') || lowerKey.includes('utc')) {
+                        const val = row[key];
+                        if (val) {
+                            const parsedDate = new Date(val);
+                            if (!isNaN(parsedDate.getTime())) {
+                                closeTime = parsedDate;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Calculate duration in seconds
+        let durationSeconds = 0;
+        if (openTime && closeTime && !isNaN(openTime.getTime()) && !isNaN(closeTime.getTime())) {
+            durationSeconds = Math.abs(closeTime - openTime) / 1000;
         }
 
         let marketName = row.MarketName || 'Unknown';
@@ -45,7 +163,9 @@ function processData(rawData) {
         return {
             ...row,
             plAmount,
+            plPoints,
             date,
+            durationSeconds,
             market: baseTicker,
             originalMarket: marketName,
             year: date ? date.getFullYear() : null,
@@ -247,7 +367,7 @@ function renderDailyView() {
         }
 
         html += `
-            <div class="${bgClass} rounded-lg sm:rounded-xl p-1.5 sm:p-3 md:p-4 flex flex-col items-center justify-center min-h-[60px] sm:min-h-[90px] md:min-h-[100px] transition-all cursor-pointer shadow-sm hover:shadow-md">
+            <div onclick="handleDayClick(${selectedYear}, ${selectedMonth}, ${day})" class="${bgClass} rounded-lg sm:rounded-xl p-1.5 sm:p-3 md:p-4 flex flex-col items-center justify-center min-h-[60px] sm:min-h-[90px] md:min-h-[100px] transition-all cursor-pointer shadow-sm hover:shadow-md">
                 <div class="text-xs sm:text-xs md:text-sm font-semibold mb-0.5 text-gray-700">${day}</div>
                 ${content}
             </div>
@@ -546,3 +666,186 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 });
+
+// Modal functions
+function handleDayClick(year, month, day) {
+    const key = `${year}-${month}-${day}`;
+    const dayData = dailyData[key];
+
+    if (!dayData || dayData.trades === 0) {
+        return; // Don't show modal for days with no trades
+    }
+
+    // Get all trades for this day
+    let tradesForDay = data.filter(row => {
+        if (selectedMarket !== 'All Markets' && row.market !== selectedMarket) {
+            return false;
+        }
+        return row.date.getFullYear() === year &&
+               row.date.getMonth() + 1 === month &&
+               row.date.getDate() === day;
+    });
+
+    // Group trades by market
+    const tradesByMarket = {};
+    tradesForDay.forEach(trade => {
+        const market = trade.market;
+        if (!tradesByMarket[market]) {
+            tradesByMarket[market] = {
+                trades: [],
+                total: 0,
+                points: 0,
+                count: 0
+            };
+        }
+        tradesByMarket[market].trades.push(trade);
+        tradesByMarket[market].total += trade.plAmount;
+        tradesByMarket[market].points += trade.plPoints;
+        tradesByMarket[market].count += 1;
+    });
+
+    // Sort markets by total profit/loss
+    const sortedMarkets = Object.entries(tradesByMarket)
+        .sort((a, b) => b[1].total - a[1].total);
+
+    showModal(year, month, day, dayData, sortedMarkets);
+}
+
+function showModal(year, month, day, dayData, sortedMarkets) {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    // Set date
+    document.getElementById('modalDate').textContent = `${monthNames[month - 1]} ${day}, ${year}`;
+
+    // Set summary
+    const totalColor = dayData.total >= 0 ? 'text-green-600' : 'text-red-600';
+    const totalBgColor = dayData.total >= 0 ? 'bg-green-100' : 'bg-red-100';
+    document.getElementById('modalSummary').innerHTML = `
+        <div class="text-base sm:text-lg text-gray-700">Total Trades: <span class="font-semibold">${dayData.trades}</span></div>
+        <div class="${totalBgColor} ${totalColor} px-3 py-1.5 rounded-lg font-bold text-lg sm:text-xl">
+            ${dayData.total >= 0 ? '' : '-'}$${Math.abs(dayData.total).toFixed(0)}
+        </div>
+    `;
+
+    // Set trade list
+    let tradeListHtml = '';
+    sortedMarkets.forEach(([market, marketData]) => {
+        const textColor = marketData.total >= 0 ? 'text-green-700' : 'text-red-700';
+        const bgColor = marketData.total >= 0 ? 'bg-green-50' : 'bg-red-50';
+        const icon = marketData.total >= 0 ? '↑' : '↓';
+
+        tradeListHtml += `
+            <div onclick="showIndividualTrades('${market.replace(/'/g, "\\'")}', ${year}, ${month}, ${day})" class="${bgColor} rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start gap-3">
+                        <div class="text-2xl ${textColor}">${icon}</div>
+                        <div>
+                            <div class="font-bold text-base sm:text-lg text-gray-900">${market}</div>
+                            <div class="text-sm text-gray-600">${marketData.count} trade${marketData.count > 1 ? 's' : ''}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="${textColor} font-bold text-lg sm:text-xl">
+                            ${marketData.total >= 0 ? '' : '-'}$${Math.abs(marketData.total).toFixed(0)}
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            ${Math.abs(marketData.points).toFixed(0)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    document.getElementById('modalTradeList').innerHTML = tradeListHtml;
+
+    // Show modal
+    document.getElementById('tradingDetailsModal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('tradingDetailsModal').classList.add('hidden');
+}
+
+// Show individual trades for a specific market
+function showIndividualTrades(market, year, month, day) {
+    // Get all trades for this market on this day
+    let tradesForMarket = data.filter(row => {
+        if (selectedMarket !== 'All Markets' && row.market !== selectedMarket) {
+            return false;
+        }
+        return row.market === market &&
+               row.date.getFullYear() === year &&
+               row.date.getMonth() + 1 === month &&
+               row.date.getDate() === day;
+    });
+
+    // Sort by time (oldest first)
+    tradesForMarket.sort((a, b) => a.date - b.date);
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    // Update modal header with back button
+    document.getElementById('modalDate').innerHTML = `
+        <button onclick="handleDayClick(${year}, ${month}, ${day})" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-2">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            Back to Day Summary
+        </button>
+        <div>${monthNames[month - 1]} ${day}, ${year} - ${market}</div>
+    `;
+
+    // Calculate totals
+    const totalAmount = tradesForMarket.reduce((sum, t) => sum + t.plAmount, 0);
+    const totalPoints = tradesForMarket.reduce((sum, t) => sum + t.plPoints, 0);
+
+    // Update summary
+    const totalColor = totalAmount >= 0 ? 'text-green-600' : 'text-red-600';
+    const totalBgColor = totalAmount >= 0 ? 'bg-green-100' : 'bg-red-100';
+    document.getElementById('modalSummary').innerHTML = `
+        <div class="text-base sm:text-lg text-gray-700">Total Trades: <span class="font-semibold">${tradesForMarket.length}</span></div>
+        <div class="${totalBgColor} ${totalColor} px-3 py-1.5 rounded-lg font-bold text-lg sm:text-xl">
+            ${totalAmount >= 0 ? '' : '-'}$${Math.abs(totalAmount).toFixed(0)}
+        </div>
+    `;
+
+    // Build individual trade list
+    let tradeListHtml = '';
+    tradesForMarket.forEach((trade, index) => {
+        const textColor = trade.plAmount >= 0 ? 'text-green-700' : 'text-red-700';
+        const bgColor = trade.plAmount >= 0 ? 'bg-green-50' : 'bg-red-50';
+        const icon = trade.plAmount >= 0 ? '↑' : '↓';
+
+        // Format duration as HH:MM:SS
+        const totalSeconds = Math.floor(trade.durationSeconds);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        const durationStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+        tradeListHtml += `
+            <div class="${bgColor} rounded-xl p-4 shadow-sm">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start gap-3">
+                        <div class="text-2xl ${textColor}">${icon}</div>
+                        <div>
+                            <div class="font-bold text-base sm:text-lg text-gray-900">Trade #${index + 1}</div>
+                            <div class="text-sm text-gray-500">${durationStr}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="${textColor} font-bold text-lg sm:text-xl">
+                            ${trade.plAmount >= 0 ? '' : '-'}$${Math.abs(trade.plAmount).toFixed(0)}
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            ${Math.abs(trade.plPoints).toFixed(0)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    document.getElementById('modalTradeList').innerHTML = tradeListHtml;
+}

@@ -122,6 +122,31 @@
         </div>
     </div>
 
+    <!-- Trading Details Modal -->
+    <div id="tradingDetailsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            <div class="p-4 sm:p-6">
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-gray-900">Trading Details</h2>
+                    <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-full transition-all">
+                        <svg class="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Date -->
+                <div id="modalDate" class="text-lg sm:text-xl text-gray-600 mb-4"></div>
+
+                <!-- Total Summary -->
+                <div id="modalSummary" class="flex items-center gap-3 mb-6"></div>
+
+                <!-- Trade List -->
+                <div id="modalTradeList" class="space-y-3 overflow-y-auto max-h-[50vh]"></div>
+            </div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
