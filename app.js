@@ -297,42 +297,276 @@ function updateYearDropdown() {
 }
 
 // Render functions
-function renderDailyView() {
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+// Calculate OHLC data for P&L progression for a specific day
+function calculateDayOHLC(year, month, day) {
+    // Get all trades for this day
+    let tradesForDay = data.filter(row => {
+        if (selectedMarket !== 'All Markets' && row.market !== selectedMarket) {
+            return false;
+        }
+        return row.date.getFullYear() === year &&
+               row.date.getMonth() + 1 === month &&
+               row.date.getDate() === day;
+    });
 
+    if (tradesForDay.length === 0) {
+        return null;
+    }
+
+    // Sort by close time chronologically
+    tradesForDay.sort((a, b) => a.date - b.date);
+
+    // Calculate running cumulative P&L
+    let cumulativePL = 0;
+    let high = 0;
+    let low = 0;
+
+    tradesForDay.forEach((trade, index) => {
+        cumulativePL += trade.plAmount;
+
+        if (index === 0) {
+            high = cumulativePL;
+            low = cumulativePL;
+        } else {
+            if (cumulativePL > high) high = cumulativePL;
+            if (cumulativePL < low) low = cumulativePL;
+        }
+    });
+
+    return {
+        open: 0,
+        close: cumulativePL,
+        high: high,
+        low: low < 0 ? low : 0
+    };
+}
+
+// Calculate OHLC data for a specific week
+function calculateWeekOHLC(year, weekNumber) {
+    const key = `${year}-W${weekNumber}`;
+    const weekData = weeklyData[key];
+
+    if (!weekData || weekData.trades === 0) {
+        return null;
+    }
+
+    // Get all trades for this week
+    let tradesForWeek = data.filter(row => {
+        if (selectedMarket !== 'All Markets' && row.market !== selectedMarket) {
+            return false;
+        }
+        return row.date.getFullYear() === year && getWeekNumber(row.date) === weekNumber;
+    });
+
+    if (tradesForWeek.length === 0) {
+        return null;
+    }
+
+    tradesForWeek.sort((a, b) => a.date - b.date);
+
+    let cumulativePL = 0;
+    let high = 0;
+    let low = 0;
+
+    tradesForWeek.forEach((trade, index) => {
+        cumulativePL += trade.plAmount;
+        if (index === 0) {
+            high = cumulativePL;
+            low = cumulativePL;
+        } else {
+            if (cumulativePL > high) high = cumulativePL;
+            if (cumulativePL < low) low = cumulativePL;
+        }
+    });
+
+    return {
+        open: 0,
+        close: cumulativePL,
+        high: high,
+        low: low < 0 ? low : 0
+    };
+}
+
+// Calculate OHLC data for a specific month
+function calculateMonthOHLC(year, month) {
+    const key = `${year}-M${month}`;
+    const monthData = monthlyData[key];
+
+    if (!monthData || monthData.trades === 0) {
+        return null;
+    }
+
+    // Get all trades for this month
+    let tradesForMonth = data.filter(row => {
+        if (selectedMarket !== 'All Markets' && row.market !== selectedMarket) {
+            return false;
+        }
+        return row.date.getFullYear() === year && row.date.getMonth() + 1 === month;
+    });
+
+    if (tradesForMonth.length === 0) {
+        return null;
+    }
+
+    tradesForMonth.sort((a, b) => a.date - b.date);
+
+    let cumulativePL = 0;
+    let high = 0;
+    let low = 0;
+
+    tradesForMonth.forEach((trade, index) => {
+        cumulativePL += trade.plAmount;
+        if (index === 0) {
+            high = cumulativePL;
+            low = cumulativePL;
+        } else {
+            if (cumulativePL > high) high = cumulativePL;
+            if (cumulativePL < low) low = cumulativePL;
+        }
+    });
+
+    return {
+        open: 0,
+        close: cumulativePL,
+        high: high,
+        low: low < 0 ? low : 0
+    };
+}
+
+// Calculate OHLC data for a specific year
+function calculateYearOHLC(year) {
+    const key = String(year);
+    const yearData = yearlyData[key];
+
+    if (!yearData || yearData.trades === 0) {
+        return null;
+    }
+
+    // Get all trades for this year
+    let tradesForYear = data.filter(row => {
+        if (selectedMarket !== 'All Markets' && row.market !== selectedMarket) {
+            return false;
+        }
+        return row.date.getFullYear() === year;
+    });
+
+    if (tradesForYear.length === 0) {
+        return null;
+    }
+
+    tradesForYear.sort((a, b) => a.date - b.date);
+
+    let cumulativePL = 0;
+    let high = 0;
+    let low = 0;
+
+    tradesForYear.forEach((trade, index) => {
+        cumulativePL += trade.plAmount;
+        if (index === 0) {
+            high = cumulativePL;
+            low = cumulativePL;
+        } else {
+            if (cumulativePL > high) high = cumulativePL;
+            if (cumulativePL < low) low = cumulativePL;
+        }
+    });
+
+    return {
+        open: 0,
+        close: cumulativePL,
+        high: high,
+        low: low < 0 ? low : 0
+    };
+}
+
+// Universal candlestick renderer - same size for all views
+function renderCandlestick(ohlc, label) {
+    const height = 1875;
+    const padding = 156.25;
+    const centerX = 50;
+    const bodyWidth = 60;
+
+    if (!ohlc) {
+        return `
+            <svg viewBox="0 0 100 ${height}" class="w-full h-auto bg-white" preserveAspectRatio="xMidYMid meet">
+                <text x="${centerX}" y="${height - 5}" text-anchor="middle" font-size="8" fill="#9ca3af">${label}</text>
+            </svg>
+        `;
+    }
+
+    const { open, close, high, low } = ohlc;
+    const isPositive = close >= open;
+    const bodyColor = isPositive ? '#16a34a' : '#dc2626';
+    const wickColor = isPositive ? '#15803d' : '#b91c1c';
+
+    const range = Math.max(Math.abs(high), Math.abs(low));
+    const scale = range > 0 ? (height - 2 * padding - 156.25) / (range * 2) : 1;
+    const centerY = height / 2;
+
+    const openY = centerY - (open * scale);
+    const closeY = centerY - (close * scale);
+    const highY = centerY - (high * scale);
+    const lowY = centerY - (low * scale);
+
+    const bodyTop = Math.min(openY, closeY);
+    const bodyBottom = Math.max(openY, closeY);
+    const bodyHeight = Math.max(bodyBottom - bodyTop, 2);
+
+    return `
+        <svg viewBox="0 0 100 ${height}" class="w-full h-auto bg-white rounded border border-gray-200" preserveAspectRatio="xMidYMid meet">
+            <line x1="0" y1="${centerY}" x2="100" y2="${centerY}" stroke="#e5e7eb" stroke-width="5" stroke-dasharray="25,25"/>
+            <line x1="${centerX}" y1="${highY}" x2="${centerX}" y2="${bodyTop}" stroke="${wickColor}" stroke-width="17.5"/>
+            <line x1="${centerX}" y1="${bodyBottom}" x2="${centerX}" y2="${lowY}" stroke="${wickColor}" stroke-width="17.5"/>
+            <rect x="${centerX - bodyWidth/2}" y="${bodyTop}" width="${bodyWidth}" height="${bodyHeight}" fill="${bodyColor}" stroke="${bodyColor}" stroke-width="7.5" rx="20"/>
+            <text x="95" y="${highY - 25}" text-anchor="end" font-size="25" fill="#6b7280">H: ${Math.round(high)}</text>
+            <text x="95" y="${lowY + 40}" text-anchor="end" font-size="25" fill="#6b7280">L: ${Math.round(low)}</text>
+            <text x="${centerX}" y="${height - 162.5}" text-anchor="middle" font-size="32.5" font-weight="bold" fill="${isPositive ? '#15803d' : '#b91c1c'}">${close >= 0 ? '+' : ''}${Math.round(close)}</text>
+            <text x="${centerX}" y="${height - 37.5}" text-anchor="middle" font-size="27.5" fill="#6b7280">${label}</text>
+        </svg>
+    `;
+}
+
+function renderDailyViewHeader() {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    const monthKey = `${selectedYear}-M${selectedMonth}`;
+    const monthTotal = monthlyData[monthKey]?.total || 0;
+
+    return `
+        <div class="bg-white rounded-t-2xl mt-2 sm:mt-3 md:mt-4 p-4 sm:p-6 pb-4">
+            <div class="flex items-center justify-between">
+                <button onclick="changeMonth(-1)" class="p-1 sm:p-1.5 hover:bg-gray-100 rounded-md transition-all">
+                    <svg class="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+                <div class="text-center">
+                    <h2 class="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-700">${monthNames[selectedMonth - 1]} ${selectedYear}</h2>
+                    <div class="text-xs sm:text-sm md:text-base lg:text-lg font-bold mt-0.5 ${monthTotal >= 0 ? 'text-green-600' : 'text-red-600'}">
+                        Total: ${monthTotal >= 0 ? '' : '-'}${Math.abs(monthTotal).toFixed(0)}
+                    </div>
+                </div>
+                <button onclick="changeMonth(1)" class="p-1 sm:p-1.5 hover:bg-gray-100 rounded-md transition-all">
+                    <svg class="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function renderDailyView() {
+    const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     const firstDay = new Date(selectedYear, selectedMonth - 1, 1);
     const lastDay = new Date(selectedYear, selectedMonth, 0);
     const daysInMonth = lastDay.getDate();
     const startDayOfWeek = firstDay.getDay();
 
-    const monthKey = `${selectedYear}-M${selectedMonth}`;
-    const monthTotal = monthlyData[monthKey]?.total || 0;
-
     let html = `
-        <div class="flex items-center justify-between mb-1.5 sm:mb-2">
-            <button onclick="changeMonth(-1)" class="p-1 sm:p-1.5 hover:bg-gray-100 rounded-md transition-all">
-                <svg class="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-            </button>
-            <div class="text-center">
-                <h2 class="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-700">${monthNames[selectedMonth - 1]} ${selectedYear}</h2>
-                <div class="text-xs sm:text-sm md:text-base lg:text-lg font-bold mt-0.5 ${monthTotal >= 0 ? 'text-green-600' : 'text-red-600'}">
-                    Total: ${monthTotal >= 0 ? '' : '-'}${Math.abs(monthTotal).toFixed(0)}
-                </div>
-            </div>
-            <button onclick="changeMonth(1)" class="p-1 sm:p-1.5 hover:bg-gray-100 rounded-md transition-all">
-                <svg class="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-            </button>
-        </div>
-
         <div class="grid grid-cols-7 gap-0.5 sm:gap-1 md:gap-1.5 mb-1">
             ${daysOfWeek.map(day => `<div class="text-[9px] sm:text-[10px] md:text-xs lg:text-sm text-center font-semibold text-gray-500 py-0.5">${day}</div>`).join('')}
         </div>
-
         <div class="grid grid-cols-7 gap-1 sm:gap-1.5 md:gap-2 overflow-auto">
     `;
 
@@ -375,6 +609,91 @@ function renderDailyView() {
     }
 
     html += '</div>';
+
+    return html;
+}
+
+function renderMonthlyCandlestickChart() {
+    const lastDay = new Date(selectedYear, selectedMonth, 0);
+    const daysInMonth = lastDay.getDate();
+
+    let html = '<div class="bg-white rounded-2xl shadow-lg p-2 sm:p-4 md:p-6">';
+    html += '<div class="text-base sm:text-lg md:text-xl font-bold text-gray-700 mb-3 sm:mb-4 text-center">Monthly P&L Chart</div>';
+    html += '<div class="flex gap-0.5 sm:gap-1">';
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const ohlc = calculateDayOHLC(selectedYear, selectedMonth, day);
+        html += `
+            <div class="flex-1 min-w-0">
+                ${renderCandlestick(ohlc, day)}
+            </div>
+        `;
+    }
+
+    html += '</div></div>';
+
+    return html;
+}
+
+function renderWeeklyCandlestickChart() {
+    let html = '<div class="bg-white rounded-2xl shadow-lg p-2 sm:p-4 md:p-6">';
+    html += '<div class="text-base sm:text-lg md:text-xl font-bold text-gray-700 mb-3 sm:mb-4 text-center">Weekly P&L Chart</div>';
+    html += '<div class="flex gap-0.5 sm:gap-1">';
+
+    for (let week = 1; week <= 52; week++) {
+        const ohlc = calculateWeekOHLC(selectedYear, week);
+        html += `
+            <div class="flex-1 min-w-0">
+                ${renderCandlestick(ohlc, week)}
+            </div>
+        `;
+    }
+
+    html += '</div></div>';
+
+    return html;
+}
+
+function renderMonthlyYearCandlestickChart() {
+    let html = '<div class="bg-white rounded-2xl shadow-lg p-2 sm:p-4 md:p-6">';
+    html += '<div class="text-base sm:text-lg md:text-xl font-bold text-gray-700 mb-3 sm:mb-4 text-center">Monthly P&L Chart</div>';
+    html += '<div class="flex gap-0.5 sm:gap-1">';
+
+    for (let month = 1; month <= 12; month++) {
+        const ohlc = calculateMonthOHLC(selectedYear, month);
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        html += `
+            <div class="flex-1 min-w-0">
+                ${renderCandlestick(ohlc, monthNames[month - 1])}
+            </div>
+        `;
+    }
+
+    html += '</div></div>';
+
+    return html;
+}
+
+function renderYearlyCandlestickChart() {
+    const startYear = Math.min(...years);
+    const endYear = Math.max(...years);
+    const yearCount = endYear - startYear + 1;
+
+    let html = '<div class="bg-white rounded-2xl shadow-lg p-2 sm:p-4 md:p-6">';
+    html += '<div class="text-base sm:text-lg md:text-xl font-bold text-gray-700 mb-3 sm:mb-4 text-center">Yearly P&L Chart</div>';
+    html += '<div class="flex gap-0.5 sm:gap-1">';
+
+    for (let year = startYear; year <= endYear; year++) {
+        const ohlc = calculateYearOHLC(year);
+        html += `
+            <div class="flex-1 min-w-0">
+                ${renderCandlestick(ohlc, year)}
+            </div>
+        `;
+    }
+
+    html += '</div></div>';
+
     return html;
 }
 
@@ -541,10 +860,12 @@ function renderYearView() {
 function renderView() {
     const noDataMessage = document.getElementById('noDataMessage');
     const calendarContent = document.getElementById('calendarContent');
+    const viewHeader = document.getElementById('viewHeader');
 
     if (data.length === 0) {
         noDataMessage.classList.remove('hidden');
         calendarContent.classList.add('hidden');
+        if (viewHeader) viewHeader.innerHTML = '';
         return;
     }
 
@@ -552,21 +873,48 @@ function renderView() {
     calendarContent.classList.remove('hidden');
 
     let html = '';
+    let headerHtml = '';
+
     switch (currentView) {
         case 'Daily':
-            html = renderDailyView();
+            headerHtml = renderDailyViewHeader();
+            // Wrap calendar and candlestick chart in separate tiles
+            html = `
+                <div class="space-y-6 sm:space-y-8">
+                    <div class="bg-white rounded-b-2xl shadow-lg p-4 sm:p-6 pt-0">
+                        ${renderDailyView()}
+                    </div>
+                    ${renderMonthlyCandlestickChart()}
+                </div>
+            `;
             break;
         case 'Week':
-            html = renderWeekView();
+            headerHtml = '';
+            html = `
+                <div class="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+                    ${renderWeekView()}
+                </div>
+            `;
             break;
         case 'Month':
-            html = renderMonthView();
+            headerHtml = '';
+            html = `
+                <div class="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+                    ${renderMonthView()}
+                </div>
+            `;
             break;
         case 'Year':
-            html = renderYearView();
+            headerHtml = '';
+            html = `
+                <div class="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+                    ${renderYearView()}
+                </div>
+            `;
             break;
     }
 
+    if (viewHeader) viewHeader.innerHTML = headerHtml;
     calendarContent.innerHTML = html;
 }
 
